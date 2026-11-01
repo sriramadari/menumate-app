@@ -43,3 +43,6 @@ yarn-error.*
 
 # Built APKs
 *.apk
+
+# Local env (keep .env.example tracked instead)
+.env

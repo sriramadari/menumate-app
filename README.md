@@ -1,0 +1,139 @@
+# MenuMate 🍽️
+
+Scan the QR code on your table, browse the menu, order. The restaurant sees
+the order land in its kitchen queue and moves it through to served.
+
+> 🏆 3rd place — college hackathon. This repo is the app rebuilt on a current
+> stack and completed end to end.
+
+MenuMate runs **fully offline**. There is no server and no database to set up:
+sample restaurants, menus, tables and orders are seeded into on-device storage
+on first launch, and both sides of the app read and write the same local store.
+
+---
+
+## 📱 Try it in 60 seconds
+
+```bash
+git clone https://github.com/sriramadari/menumate-app.git
+cd menumate-app
+npm install
+npx expo start
+```
+
+Scan the terminal QR with [Expo Go](https://expo.dev/go) (Android/iOS). Sign in
+with **any 10-digit number** — the verification code is shown on screen, since
+offline mode has no SMS to send.
+
+## 📷 Demo table QR codes
+
+Inside the app choose **Dine out → Open camera**, then scan one of these
+straight off the screen. Each code opens that restaurant's menu for that
+specific table.
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/qr/spice-route-table-2.png" width="170"></td>
+    <td align="center"><img src="docs/qr/dosa-junction-table-1.png" width="170"></td>
+    <td align="center"><img src="docs/qr/charminar-table-1.png" width="170"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Spice Route</b><br>Table 2<br><code>MENUMATE:r1:t2</code></td>
+    <td align="center"><b>Dosa Junction</b><br>Table 1<br><code>MENUMATE:r2:t5</code></td>
+    <td align="center"><b>Charminar Biryani</b><br>Table 1<br><code>MENUMATE:r3:t6</code></td>
+  </tr>
+</table>
+
+No camera handy? Every code is plain text — type it into **"Or enter the code"**,
+or tap one of the demo walk-in tables. The merchant side also renders a live QR
+for each of its own tables under **Table QR codes**.
+
+Regenerate these images with `node scripts/generate-qr.mjs`.
+
+---
+
+## ✨ What it does
+
+**Dine out**
+- Scan a table QR, with manual entry and walk-in tables as fallbacks
+- Menu grouped by course, veg/non-veg marked, sold-out items hidden
+- Quantity steppers, cart review, order placement
+- Live order status: `placed → preparing → ready → served`
+
+**Merchant**
+- Dashboard: open orders, menu size, revenue served
+- Full menu CRUD — add, edit, delete, and flip dishes to sold out
+- A scannable QR per table, generated on device
+- Kitchen queue: advance any order one stage at a time
+
+## 🏗️ How it's built
+
+| | |
+|---|---|
+| **Framework** | Expo SDK 58, React Native 0.88, React 19 |
+| **Navigation** | expo-router (file-based) |
+| **UI** | react-native-paper (Material 3, dark theme) |
+| **Storage** | AsyncStorage |
+| **QR** | `react-native-qrcode-svg` to render, `expo-camera` to scan |
+
+```
+app/
+  _layout.js            theme, cart provider, seeding, routes
+  index.js              auth gate -> phone + OTP
+  ChoiceScreen.js       hub: dine out / merchant / reset demo data
+  merchant/             dashboard · menu · tables · orders
+  diner/                scan · menu · cart · orders
+lib/
+  auth.js               one API over local + Supabase backends
+  store.js              offline repository with change notification
+  seed.js               sample restaurants, dishes, tables, orders
+  qr.js                 table QR codec
+  cart.js               in-memory cart, bound to one table
+scripts/
+  generate-qr.mjs       rebuilds docs/qr/
+```
+
+A few decisions worth calling out:
+
+- **`lib/store.js` is the only module that touches storage.** Screens never
+  read AsyncStorage directly, so swapping in a real backend means changing one
+  file. It publishes change events, so a merchant editing the menu updates the
+  diner's screen with no polling.
+- **Orders persist; the cart does not.** A cart belongs to one sitting, so
+  losing it on reload is correct. Orders are records and have to survive.
+- **A cart is bound to one restaurant and table.** Opening a different table
+  clears it rather than letting two venues' dishes end up in one order.
+- **Orders are stamped with the signed-in phone**, so a diner sees only their
+  own orders while the merchant sees the whole queue.
+
+## 🔐 Auth modes
+
+Set in `.env` (see `.env.example`):
+
+```bash
+EXPO_PUBLIC_AUTH_MODE=local      # default: on-device, no network
+```
+
+`local` verifies phone and OTP on the device and keeps the session in
+AsyncStorage. Switch to `supabase` and supply `EXPO_PUBLIC_SUPABASE_URL` plus
+`EXPO_PUBLIC_SUPABASE_ANON_KEY` to use real SMS OTP instead — the code path is
+intact, it just needs a live project.
+
+## ✅ Tests
+
+```bash
+node scripts/generate-qr.mjs   # regenerate + sanity-check QR payloads
+npx expo-doctor                # 20/20 project health checks
+```
+
+## 📦 Android build
+
+```bash
+npm run prebuild      # expo prebuild --platform android --clean
+npm run apk:release   # -> android/app/build/outputs/apk/release/
+```
+
+Release signing is applied by `plugins/withReleaseSigning.js` rather than by
+hand-editing `build.gradle`, because `android/` is regenerated by every
+prebuild. Point it at your own keystore with `MENUMATE_KEYSTORE_FILE`,
+`MENUMATE_KEYSTORE_PASSWORD`, `MENUMATE_KEY_ALIAS` and `MENUMATE_KEY_PASSWORD`.
