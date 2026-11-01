@@ -1,24 +1,32 @@
 import React, { useState } from "react";
-import { Alert, StyleSheet, View } from "react-native";
-import { Button, Text, TextInput } from "react-native-paper";
-import { supabase } from "../lib/supabase";
+import { StyleSheet, View } from "react-native";
+import { Button, HelperText, Text, TextInput } from "react-native-paper";
+import { isLocalMode, sendOtp } from "../lib/auth";
 import { useAutoRefresh } from "../lib/useAutoRefresh";
 
-export default function Auth({ phone, setPhone, setSentCode }) {
+export default function Auth({ phone, setPhone, setSentCode, setDevCode }) {
 	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState(null);
 	useAutoRefresh();
 
+	const digits = String(phone ?? "").replace(/\D/g, "");
+	const valid = digits.length === 10;
+
 	async function signInWithPhone() {
-		if (!phone) return;
 		setLoading(true);
+		setError(null);
 
-		const { error } = await supabase.auth.signInWithOtp({
-			phone: `91${phone}`,
-		});
-
-		setLoading(false);
-		if (error) Alert.alert(error.message);
-		else setSentCode(true);
+		try {
+			const { devCode } = await sendOtp(digits);
+			setDevCode(devCode ?? null);
+			setSentCode(true);
+		} catch (e) {
+			// Never let a rejection go unhandled -- in a release build that
+			// surfaces as a native crash rather than a message.
+			setError(e?.message ?? "Could not send the code. Please try again.");
+		} finally {
+			setLoading(false);
+		}
 	}
 
 	return (
@@ -26,23 +34,31 @@ export default function Auth({ phone, setPhone, setSentCode }) {
 			<Text variant="headlineMedium" style={styles.header}>
 				Welcome to MenuMate
 			</Text>
+
 			<View style={styles.verticallySpaced}>
 				<TextInput
 					mode="outlined"
 					label="Phone Number 🤳"
-					placeholder="Enter your phone number"
+					placeholder="10-digit number"
 					value={phone}
 					keyboardType="phone-pad"
-					autoComplete="tel"
-					onChangeText={setPhone}
+					maxLength={10}
+					onChangeText={(t) => setPhone(t.replace(/\D/g, ""))}
 				/>
+				<HelperText type={error ? "error" : "info"} visible>
+					{error ??
+						(isLocalMode
+							? "Offline mode — the code is shown on the next screen."
+							: "We'll text you a verification code.")}
+				</HelperText>
 			</View>
+
 			<View style={styles.verticallySpaced}>
 				<Button
 					mode="contained"
 					onPress={signInWithPhone}
 					loading={loading}
-					disabled={loading || !phone}
+					disabled={loading || !valid}
 				>
 					Sign In
 				</Button>

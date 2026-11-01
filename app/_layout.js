@@ -1,3 +1,4 @@
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { MD3DarkTheme, PaperProvider } from "react-native-paper";
@@ -12,9 +13,18 @@ const theme = {
   },
 };
 
+/**
+ * Paper renders icons through react-native-vector-icons by default, which
+ * isn't present in an Expo project -- point it at @expo/vector-icons so
+ * any component that draws an icon doesn't blow up at runtime.
+ */
+const settings = {
+  icon: (props) => <MaterialCommunityIcons {...props} />,
+};
+
 export default function RootLayout() {
   return (
-    <PaperProvider theme={theme}>
+    <PaperProvider theme={theme} settings={settings}>
       <StatusBar style="light" />
       <Stack
         screenOptions={{

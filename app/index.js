@@ -3,27 +3,38 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import Auth from "../components/Auth.jsx";
 import OTPVerify from "../components/OTPVerify.jsx";
-import { supabase } from "../lib/supabase.js";
+import { getSession, onAuthStateChange } from "../lib/auth";
 
 export default function Index() {
   const [session, setSession] = useState(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [phone, setPhone] = useState("");
   const [sentCode, setSentCode] = useState(false);
+  const [devCode, setDevCode] = useState(null);
 
   useEffect(() => {
-    supabase.auth
-      .getSession()
-      .then(({ data: { session } }) => setSession(session))
-      .finally(() => setLoadingSession(false));
+    let active = true;
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    getSession()
+      .then((s) => {
+        if (active) setSession(s);
+      })
+      .catch(() => {
+        // Treat an unreadable session as "signed out" rather than crashing.
+        if (active) setSession(null);
+      })
+      .finally(() => {
+        if (active) setLoadingSession(false);
+      });
+
+    const unsubscribe = onAuthStateChange((s) => {
+      if (active) setSession(s);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   if (loadingSession) {
@@ -41,9 +52,14 @@ export default function Index() {
   return (
     <View style={styles.container}>
       {sentCode ? (
-        <OTPVerify phone={phone} />
+        <OTPVerify phone={phone} devCode={devCode} />
       ) : (
-        <Auth phone={phone} setPhone={setPhone} setSentCode={setSentCode} />
+        <Auth
+          phone={phone}
+          setPhone={setPhone}
+          setSentCode={setSentCode}
+          setDevCode={setDevCode}
+        />
       )}
     </View>
   );
