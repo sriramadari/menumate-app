@@ -1,76 +1,86 @@
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { AppState, StyleSheet, Text, View } from "react-native";
-import { Button, Input } from "react-native-elements";
+import { Alert, StyleSheet, View } from "react-native";
+import { Button, Text, TextInput } from "react-native-paper";
 import { supabase } from "../lib/supabase";
-
-// Tells Supabase Auth to continuously refresh the session automatically if
-// the app is in the foreground. When this is added, you will continue to receive
-// `onAuthStateChange` events with the `TOKEN_REFRESHED` or `SIGNED_OUT` event
-// if the user's session is terminated. This should only be registered once.
-AppState.addEventListener("change", (state) => {
-	if (state === "active") {
-		supabase.auth.startAutoRefresh();
-	} else {
-		supabase.auth.stopAutoRefresh();
-	}
-});
+import { useAutoRefresh } from "../lib/useAutoRefresh";
 
 export default function OTPVerify({ phone }) {
 	const [otp, setOtp] = useState("");
 	const [loading, setLoading] = useState(false);
+	useAutoRefresh();
 
 	async function verifyOtp() {
 		if (!otp) return;
 		setLoading(true);
+
 		const {
 			data: { session },
-			error,
+			error: verifyError,
 		} = await supabase.auth.verifyOtp({
 			phone: `91${phone}`,
 			token: otp,
 			type: "sms",
 		});
 
-		if (error) {
+		if (verifyError) {
 			setLoading(false);
-			Alert.alert(error.message);
-		} else {
-			let { data: user_profiles, error } = await supabase
-				.from('user_profiles')
-				.select('id')
-				.eq('id', session.user.id)
-
-			if (user_profiles.length === 0) {
-				let { data, error } = await supabase
-					.from('user_profiles')
-					.insert([{ id: session.user.id }])
-				console.log("added")
-			}
-			console.log(user_profiles)
-			setLoading(false);
-			    router.replace("/ChoiceScreen");
+			Alert.alert(verifyError.message);
+			return;
 		}
+
+		const { data: profiles, error: profileError } = await supabase
+			.from("user_profiles")
+			.select("id")
+			.eq("id", session.user.id);
+
+		if (profileError) {
+			setLoading(false);
+			Alert.alert(profileError.message);
+			return;
+		}
+
+		if (profiles.length === 0) {
+			const { error: insertError } = await supabase
+				.from("user_profiles")
+				.insert([{ id: session.user.id }]);
+
+			if (insertError) {
+				setLoading(false);
+				Alert.alert(insertError.message);
+				return;
+			}
+		}
+
+		setLoading(false);
+		router.replace("/ChoiceScreen");
 	}
 
 	return (
 		<View style={styles.container}>
-			<Text style={styles.header}>Let's get you verified ✅ </Text>
-			<View style={[styles.verticallySpaced, styles.mt20]}>
-				<Input
+			<Text variant="headlineMedium" style={styles.header}>
+				Let's get you verified ✅
+			</Text>
+			<View style={styles.verticallySpaced}>
+				<TextInput
+					mode="outlined"
 					label="OTP 🔐"
-					labelStyle={{ color: "white", fontSize: 26 }}
-					placeholder="Enter your Verfication Code"
-					placeholderTextColor="grey"
-					inputStyle={{ color: "white", fontSize: 16 }}
-					leftIcon={{ type: "font-awesome", name: "lock", color: "white"}}
+					placeholder="Enter your verification code"
 					value={otp}
 					keyboardType="number-pad"
+					autoComplete="sms-otp"
 					onChangeText={setOtp}
 				/>
 			</View>
-			<View style={[styles.verticallySpaced, styles.mt20]}>
-				<Button title="Verify" onPress={verifyOtp} disabled={loading} />
+			<View style={styles.verticallySpaced}>
+				<Button
+					mode="contained"
+					onPress={verifyOtp}
+					loading={loading}
+					disabled={loading || !otp}
+				>
+					Verify
+				</Button>
 			</View>
 		</View>
 	);
@@ -82,19 +92,14 @@ const styles = StyleSheet.create({
 		padding: 12,
 	},
 	verticallySpaced: {
-		paddingTop: 4,
-		paddingBottom: 4,
+		paddingTop: 8,
+		paddingBottom: 8,
 		alignSelf: "stretch",
 	},
-	mt20: {
-		
-	},
 	header: {
-		fontSize: 24,
 		fontWeight: "bold",
 		marginBottom: 20,
 		textAlign: "center",
 		color: "white",
 	},
 });
-

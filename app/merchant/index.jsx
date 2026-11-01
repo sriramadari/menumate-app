@@ -1,22 +1,35 @@
-import react,{useEffect} from 'react';
-import {
-	ScrollView,
-	StyleSheet,
-	Text,
-	TextInput,
-	TouchableOpacity,
-	View,
-} from "react-native";
-import {
-	Appbar,
-	Button,
-	Modal,		
-	PaperProvider,
-	Portal,
-} from "react-native-paper";
-// import QrCreator from "../../components/QrCreator";
+import { ScrollView, StyleSheet } from "react-native";
+import { Text } from "react-native-paper";
 
-export default function   (){
- 
-   <Text>Hello</Text>
+export default function Merchant() {
+  return (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+    >
+      <Text variant="headlineSmall" style={styles.header}>
+        Merchant dashboard
+      </Text>
+      <Text style={styles.body}>
+        Menu and QR management will live here.
+      </Text>
+    </ScrollView>
+  );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "black",
+  },
+  content: {
+    padding: 20,
+  },
+  header: {
+    color: "white",
+    marginBottom: 12,
+  },
+  body: {
+    color: "#bbbbbb",
+  },
+});
