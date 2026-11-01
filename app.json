@@ -37,7 +37,13 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "./plugins/withReleaseSigning"
+      "./plugins/withReleaseSigning",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "MenuMate uses the camera to scan the QR code on your table."
+        }
+      ]
     ]
   }
 }
